@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::io::Read;
 use std::process::{Command, Stdio};
 use std::{
+    env::self,
     fs::{self, File},
     io::{self, BufRead, BufReader},
 };
@@ -18,18 +19,15 @@ struct SpellbookResponse {
 }
 
 fn main() -> io::Result<()> {
-    println!("Hello, world!");
-
-    let filename = "test.js";
-
+    let filename = env::args().last().unwrap_or("test.js".to_string());
     let mut file_contents = String::new();
-    File::open(filename)
+    File::open(&filename)
         .unwrap()
         .read_to_string(&mut file_contents)
         .expect("could not read the file to string :(((");
 
     let mut node_process = Command::new("node")
-        .arg(filename)
+        .arg(&filename)
         .stderr(Stdio::piped())
         .spawn()
         .expect("Failed to start node");
@@ -85,7 +83,7 @@ Error:
     
     let (result, _ticks) = result.rsplit_once('\n').unwrap();
     println!("{result}");
-    fs::write("test.js.new", result).expect("Unable to write file");
+    fs::write(filename + ".new", result).expect("Unable to write file");
 
     Ok(())
 }
