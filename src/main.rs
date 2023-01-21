@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::io::Read;
 use std::process::{Command, Stdio};
 use std::{
-    fs::File,
+    fs::{self, File},
     io::{self, BufRead, BufReader},
 };
 
@@ -52,7 +52,8 @@ fn main() -> io::Result<()> {
 Error: 
 ```
 {error_string}
-```"
+```
+"
     );
 
     let mut headers = header::HeaderMap::new();
@@ -67,7 +68,7 @@ Error:
         .build()
         .unwrap();
     let result = client
-        .post("https://dashboard.scale.com/spellbook/api/app/o7n22jb")
+        .post("https://dashboard.scale.com/spellbook/api/app/sx4y22qr")
         .body(
             serde_json::to_string(&Body {
                 input: request_string,
@@ -80,7 +81,7 @@ Error:
         .unwrap();
 
     println!("{}", result.text);
-
+    fs::write("test.js.new", result.text).expect("Unable to write file");
 
     Ok(())
 }

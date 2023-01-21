@@ -1,4 +1,4 @@
 { pkgs ? import <nixpkgs> {} }:
   pkgs.mkShell {
-    nativeBuildInputs = [ pkgs.cargo pkgs.nodejs ];
+    nativeBuildInputs = [ pkgs.openssl pkgs.cargo pkgs.nodejs ];
 }
