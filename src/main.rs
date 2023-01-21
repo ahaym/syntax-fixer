@@ -68,7 +68,7 @@ Error:
         .build()
         .unwrap();
     let result = client
-        .post("https://dashboard.scale.com/spellbook/api/app/sx4y22qr")
+        .post("https://dashboard.scale.com/spellbook/api/app/4q6k2235")
         .body(
             serde_json::to_string(&Body {
                 input: request_string,
@@ -80,8 +80,12 @@ Error:
         .json::<SpellbookResponse>()
         .unwrap();
 
-    println!("{}", result.text);
-    fs::write("test.js.new", result.text).expect("Unable to write file");
+    let result = result.text.trim();
+    let (_js_ticks, result) = result.split_once('\n').unwrap();
+    
+    let (result, _ticks) = result.rsplit_once('\n').unwrap();
+    println!("{result}");
+    fs::write("test.js.new", result).expect("Unable to write file");
 
     Ok(())
 }
