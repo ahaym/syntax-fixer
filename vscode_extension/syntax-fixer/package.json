@@ -17,7 +17,7 @@
     "commands": [
       {
         "command": "syntax-fixer.fixYourCode",
-        "title": "Hello World"
+        "title": "Syntax Fixer: Fix Your NodeJS Code"
       }
     ]
   },
