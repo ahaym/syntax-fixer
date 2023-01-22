@@ -725,12 +725,14 @@ name = "syntax-fixer"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "http",
  "rand",
  "reqwest",
  "serde",
  "serde_json",
  "tempfile",
  "tokio",
+ "tower-http",
 ]
 
 [[package]]

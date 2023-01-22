@@ -5,7 +5,7 @@ use axum::{
     Json, Router,
 };
 use rand::random;
-use reqwest::{Client, ClientBuilder, header};
+use reqwest::{header, Client, ClientBuilder};
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 use std::net::SocketAddr;
@@ -17,6 +17,7 @@ use std::{
     io::{self, BufRead, BufReader},
 };
 use tokio::main;
+use tower_http::cors::{self, Any};
 
 #[derive(Serialize, Deserialize)]
 struct Body {
@@ -60,10 +61,17 @@ async fn main() {
         .unwrap_or(8080);
     println!("Listening on port {port}");
 
+    let cors = cors::CorsLayer::new()
+        // allow `GET` and `POST` when accessing the resource
+        .allow_methods([http::Method::GET, http::Method::POST, http::Method::OPTIONS])
+        .allow_headers([http::header::CONTENT_TYPE])
+        // allow requests from any origin
+        .allow_origin(Any);
     // build our application with a route
     let app = Router::new()
         // `POST /users` goes to `create_user`
-        .route("/fix", post(fix_code_endpoint));
+        .route("/fix", post(fix_code_endpoint))
+        .layer(cors);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     axum::Server::bind(&addr)
