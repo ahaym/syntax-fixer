@@ -89,13 +89,22 @@ struct FixCodeRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct FixCodeResponse {
     code_js: String,
+    output: String
 }
 
 async fn fix_code_endpoint(
     Json(body): Json<FixCodeRequest>,
 ) -> Result<Json<FixCodeResponse>, StatusCode> {
-    match improve_your_code(body.code_js).await {
-        Ok(code_js) => Ok(Json(FixCodeResponse { code_js })),
+    let foo = async {
+        let code_js = improve_your_code(body.code_js).await?;
+        let fixed_filename = write_code_to_file(code_js.as_str())?;
+        let post_fixing_output = run_code(fixed_filename.as_path());
+
+        Ok((code_js, post_fixing_output))
+    };
+    let foo: Result<_, io::Error> = foo.await;
+    match foo {
+        Ok((code_js, post_fixing_output)) => Ok(Json(FixCodeResponse { code_js, output: post_fixing_output })),
         Err(e) => {
             println!("error: {e:?}");
             Err(StatusCode::INTERNAL_SERVER_ERROR)
