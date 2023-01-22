@@ -29,6 +29,7 @@ fn main() -> io::Result<()> {
     let mut node_process = Command::new("node")
         .arg(&filename)
         .stderr(Stdio::piped())
+        .stdout(Stdio::null())
         .spawn()
         .expect("Failed to start node");
     let reader = BufReader::new(
@@ -40,6 +41,11 @@ fn main() -> io::Result<()> {
     let error_string = reader
         .lines()
         .fold(String::new(), |acc, el| acc + el.unwrap().as_str() + "\n");
+
+    if error_string.len() == 0 {
+        println!("{}", &file_contents);
+        return Ok(());
+    }
 
     let request_string = format!(
         "Original File: 
