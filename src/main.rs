@@ -89,7 +89,8 @@ struct FixCodeRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct FixCodeResponse {
     code_js: String,
-    output: String
+    stdout: String,
+    stderr: String,
 }
 
 async fn fix_code_endpoint(
@@ -104,7 +105,11 @@ async fn fix_code_endpoint(
     };
     let foo: Result<_, io::Error> = foo.await;
     match foo {
-        Ok((code_js, post_fixing_output)) => Ok(Json(FixCodeResponse { code_js, output: post_fixing_output })),
+        Ok((code_js, post_fixing_output)) => Ok(Json(FixCodeResponse {
+            code_js,
+            stdout: post_fixing_output.stdout,
+            stderr: post_fixing_output.stderr,
+        })),
         Err(e) => {
             println!("error: {e:?}");
             Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -112,20 +117,15 @@ async fn fix_code_endpoint(
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct RanCodeResponse {
-    output: String
-}
-
 async fn run_code_endpoint(
-    Json(FixCodeRequest { code_js }): Json<FixCodeRequest>
-) -> Result<Json<RanCodeResponse>, StatusCode> {
-    let foo = || -> Result<String, io::Error> {
+    Json(FixCodeRequest { code_js }): Json<FixCodeRequest>,
+) -> Result<Json<CmdLineOut>, StatusCode> {
+    let foo = || -> Result<_, io::Error> {
         let filename = write_code_to_file(code_js.as_str())?;
         Ok(run_code(filename.as_path()))
     };
     match foo() {
-        Ok(string) => Ok(Json(RanCodeResponse { output: string })),
+        Ok(out) => Ok(Json(out)),
         Err(e) => {
             dbg!(e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -136,7 +136,10 @@ async fn run_code_endpoint(
 async fn improve_your_code(file_contents: String) -> Result<String, io::Error> {
     let filename = write_code_to_file(file_contents.as_str())?;
 
-    let error_string = run_code(filename.as_path());
+    let CmdLineOut {
+        stderr: error_string,
+        ..
+    } = run_code(filename.as_path());
     if error_string.len() == 0 {
         return Ok(file_contents);
     }
@@ -186,11 +189,16 @@ Error:
     Ok(result.into())
 }
 
-fn run_code(filename: &std::path::Path) -> String {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CmdLineOut {
+    stdout: String,
+    stderr: String,
+}
+fn run_code(filename: &std::path::Path) -> CmdLineOut {
     let mut node_process = Command::new("node")
         .arg(filename)
         .stderr(Stdio::piped())
-        .stdout(Stdio::null())
+        .stdout(Stdio::piped())
         .spawn()
         .expect("Failed to start node");
     let reader = BufReader::new(
@@ -202,7 +210,20 @@ fn run_code(filename: &std::path::Path) -> String {
     let error_string = reader
         .lines()
         .fold(String::new(), |acc, el| acc + el.unwrap().as_str() + "\n");
-    error_string
+
+    let reader = BufReader::new(
+        node_process
+            .stdout
+            .take()
+            .expect("failed to capture stderr"),
+    );
+    let stdout_string = reader
+        .lines()
+        .fold(String::new(), |acc, el| acc + el.unwrap().as_str() + "\n");
+    CmdLineOut {
+        stdout: stdout_string,
+        stderr: error_string,
+    }
 }
 
 /// Returns the filename
