@@ -71,6 +71,7 @@ async fn main() {
     let app = Router::new()
         // `POST /users` goes to `create_user`
         .route("/fix", post(fix_code_endpoint))
+        .route("/run", post(run_code_endpoint))
         .layer(cors);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
@@ -102,30 +103,33 @@ async fn fix_code_endpoint(
     }
 }
 
-async fn improve_your_code(file_contents: String) -> Result<String, io::Error> {
-    let temp_dir = std::env::temp_dir();
-    let filename = format!("file_{}.js", random::<usize>());
-    let filename = temp_dir.join(filename);
-    let mut tempfile = std::fs::File::create(filename.as_path())?;
-    tempfile.write(file_contents.as_bytes())?;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct RanCodeResponse {
+    output: String
+}
 
-    let mut node_process = Command::new("node")
-        .arg(filename)
-        .stderr(Stdio::piped())
-        .stdout(Stdio::null())
-        .spawn()
-        .expect("Failed to start node");
-    let reader = BufReader::new(
-        node_process
-            .stderr
-            .take()
-            .expect("failed to capture stderr"),
-    );
-    let error_string = reader
-        .lines()
-        .fold(String::new(), |acc, el| acc + el.unwrap().as_str() + "\n");
+async fn run_code_endpoint(
+    Json(FixCodeRequest { code_js }): Json<FixCodeRequest>
+) -> Result<Json<RanCodeResponse>, StatusCode> {
+    let foo = || -> Result<String, io::Error> {
+        let filename = write_code_to_file(code_js.as_str())?;
+        Ok(run_code(filename.as_path()))
+    };
+    match foo() {
+        Ok(string) => Ok(Json(RanCodeResponse { output: string })),
+        Err(e) => {
+            dbg!(e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+async fn improve_your_code(file_contents: String) -> Result<String, io::Error> {
+    let filename = write_code_to_file(file_contents.as_str())?;
+
+    let error_string = run_code(filename.as_path());
     if error_string.len() == 0 {
-        return Ok(error_string);
+        return Ok(file_contents);
     }
     let request_string = format!(
         "Original File: 
@@ -171,4 +175,33 @@ Error:
     let (result, _ticks) = result.rsplit_once('\n').unwrap();
 
     Ok(result.into())
+}
+
+fn run_code(filename: &std::path::Path) -> String {
+    let mut node_process = Command::new("node")
+        .arg(filename)
+        .stderr(Stdio::piped())
+        .stdout(Stdio::null())
+        .spawn()
+        .expect("Failed to start node");
+    let reader = BufReader::new(
+        node_process
+            .stderr
+            .take()
+            .expect("failed to capture stderr"),
+    );
+    let error_string = reader
+        .lines()
+        .fold(String::new(), |acc, el| acc + el.unwrap().as_str() + "\n");
+    error_string
+}
+
+/// Returns the filename
+fn write_code_to_file(file_contents: &str) -> Result<std::path::PathBuf, io::Error> {
+    let temp_dir = std::env::temp_dir();
+    let filename = format!("file_{}.js", random::<usize>());
+    let filename = temp_dir.join(filename);
+    let mut tempfile = std::fs::File::create(filename.as_path())?;
+    tempfile.write(file_contents.as_bytes())?;
+    Ok(filename)
 }
