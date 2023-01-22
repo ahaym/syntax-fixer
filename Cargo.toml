@@ -9,3 +9,7 @@ edition = "2021"
 reqwest = { version="*", features = ["blocking", "json", "rustls-tls"], default-features=false}
 serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.91"
+axum = { version="*", features=["json"] }
+tokio = { version="*", features = ["rt", "macros"] }
+rand = "*"
+tempfile = "*"
